@@ -6,7 +6,7 @@ namespace GitHookTestApp
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("namaste aqt");
+            Console.WriteLine("namaste jai");
         }
     }
 }
