@@ -8,6 +8,7 @@ namespace GitHookTestApp
         {
             Console.WriteLine("namaste");
             Console.WriteLine("jai mahakal");
+            Console.WriteLine("akal takt");
             //TEst mesg
         }
     }
