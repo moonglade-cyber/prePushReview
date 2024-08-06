@@ -10,6 +10,7 @@ namespace GitHookTestApp
             Console.WriteLine("jai mahakal");
             Console.WriteLine("akal takt");
             //TEst mesg
+            Console.WriteLine("jai mata di");
         }
     }
 }
