@@ -1,0 +1,9 @@
+{
+  "action": "closed",
+  "pull_request": {
+    "merged": "false",
+    "head": {
+      "ref": "temp-review-branch-1722927027"
+    }
+  }
+}
