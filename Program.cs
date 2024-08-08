@@ -11,7 +11,7 @@ namespace GitHookTestApp
             Console.WriteLine("akal takt");
             Console.WriteLine("om");
             Console.WriteLine("jai mata di");
-            Console.WriteLine("jai bajranbali");
+            Console.WriteLine("jai jagannath");
             //TEst mesg
         }
     }
