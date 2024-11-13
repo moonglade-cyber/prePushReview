@@ -1,0 +1,43 @@
+name: Auto-Create PR and Reverse Push
+
+
+on:
+  push:
+    branches:
+      - master  
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest  
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2  
+
+    - name: Create temporary branch and reverse changes
+      run: |
+        
+        TEMP_BRANCH="temp-branch-$(date +'%s')"  
+    
+        git checkout master  
+    
+        git checkout -b "$TEMP_BRANCH"  
+    
+        git push origin "$TEMP_BRANCH"  
+    
+        git checkout master  
+    
+        git reset --hard HEAD~1  
+    
+        git push origin master --force   
+    
+    
+
+        
+    - name: Create Pull Request to dev
+      uses: peter-evans/create-pull-request@v3  
+      with:
+        branch: "$TEMP_BRANCH"  
+        base: master  
+        title: "Automated Pull Request for Review"
+        body: "This PR was automatically created for code review. The changes have not yet been merged into dev."
