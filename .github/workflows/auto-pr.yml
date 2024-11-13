@@ -1,0 +1,38 @@
+name: Auto-Create PR and Reverse Push
+
+# Trigger the workflow when there's a push to the 'dev' branch
+on:
+  push:
+    branches:
+      - dev  # Change this to your source branch if you want to use another branch
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest  # Run the job on the latest version of Ubuntu
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2  # Checkout the latest commit from the dev branch
+
+    - name: Create temporary branch and reverse changes
+      run: |
+        # Get the latest commit hash of the current state
+        TEMP_BRANCH="temp-branch-$(date +'%s')"  # Create a unique temp branch name with timestamp
+        git checkout dev
+        
+        # Create a new temporary branch from `dev`
+        git checkout -b "$TEMP_BRANCH"
+        
+        # Reverse the commit (undo the changes)
+        git reset --hard HEAD~1  # Undo the last commit (adjust `HEAD~1` for more commits to reverse)
+        
+        # Push the temporary branch to the remote repository
+        git push origin "$TEMP_BRANCH"
+        
+    - name: Create Pull Request to dev
+      uses: peter-evans/create-pull-request@v3  # Action to create the PR
+      with:
+        branch: "$TEMP_BRANCH"  # The temporary branch created in the previous step
+        base: dev  # The target branch for the PR (protected `dev` in this case)
+        title: "Automated Pull Request for Review"
+        body: "This PR was automatically created for code review. The changes have not yet been merged into dev."
