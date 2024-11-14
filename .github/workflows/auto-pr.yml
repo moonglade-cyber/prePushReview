@@ -1,43 +1,65 @@
-name: Auto-Create PR and Reverse Push
-
+name: Create PR from Temporary Branch
 
 on:
   push:
     branches:
-      - master  
+      - master
 
 jobs:
-  create-pr:
-    runs-on: ubuntu-latest  
-
+  create-temp-branch-pr:
+    runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3  
-
-    - name: Create temporary branch and reverse changes
-      run: |
-        
-        TEMP_BRANCH="temp-branch-$(date +'%s')"  
-    
-        git checkout master  
-    
-        git checkout -b "$TEMP_BRANCH"  
-    
-        git push origin "$TEMP_BRANCH"  
-    
-        git checkout master  
-    
-        git reset --hard HEAD~1  
-    
-        git push origin master --force   
-    
-    
-
-        
-    - name: Create Pull Request to dev
-      uses: peter-evans/create-pull-request@v3  
-      with:
-        branch: "$TEMP_BRANCH"  
-        base: master  
-        title: "Automated Pull Request for Review"
-        body: "This PR was automatically created for code review. The changes have not yet been merged into dev."
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for all branches
+          
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+      - name: Get branch name and create temp branch
+        run: |
+          # Get the current branch name
+          CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
+          
+          # Generate a unique temporary branch name
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
+          
+          # Create and checkout temporary branch from the latest commit
+          git checkout -b $TEMP_BRANCH
+          
+          # Store branch names for later steps
+          echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          
+      - name: Reset original branch to previous commit
+        run: |
+          # Switch back to original branch
+          git checkout ${{ env.CURRENT_BRANCH }}
+          
+          # Reset to the previous commit
+          git reset --hard HEAD~1
+          
+          # Force push the reset branch
+          git push origin ${{ env.CURRENT_BRANCH }} --force
+          
+      - name: Push temporary branch
+        run: |
+          # Switch to temp branch and push it
+          git checkout ${{ env.TEMP_BRANCH }}
+          git push origin ${{ env.TEMP_BRANCH }}
+          
+      - name: Create Pull Request
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: ${{ env.TEMP_BRANCH }}
+          destination_branch: ${{ env.CURRENT_BRANCH }}
+          pr_title: "Changes from ${{ env.CURRENT_BRANCH }} branch"
+          pr_body: |
+            This PR contains changes that were originally pushed to `${{ env.CURRENT_BRANCH }}`.
+            Created automatically by GitHub Actions.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
