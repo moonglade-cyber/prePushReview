@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+permissions:
+  contents: write  # Grant write access to repository contents (needed for pushing changes)
+  pull-requests: write  # Allow the creation of pull requests
 
 jobs:
   create-temp-branch-pr:
