@@ -5,18 +5,22 @@ on:
     branches:
       - master
 permissions:
-  contents: write  # Grant write access to repository contents (needed for pushing changes)
-  pull-requests: write  # Allow the creation of pull requests
+  contents: write  
+  pull-requests: write  
 
 jobs:
   create-temp-branch-pr:
+    if: |
+      !contains(github.event.head_commit.message, 'Merge pull request') &&
+      github.event.created != true &&
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for all branches
+          fetch-depth: 0  
           
       - name: Configure Git
         run: |
@@ -25,34 +29,34 @@ jobs:
           
       - name: Get branch name and create temp branch
         run: |
-          # Get the current branch name
+          
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
           
-          # Generate a unique temporary branch name
+          
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
           
-          # Create and checkout temporary branch from the latest commit
+          
           git checkout -b $TEMP_BRANCH
           
-          # Store branch names for later steps
+          
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           
       - name: Reset original branch to previous commit
         run: |
-          # Switch back to original branch
+          
           git checkout ${{ env.CURRENT_BRANCH }}
           
-          # Reset to the previous commit
+          
           git reset --hard HEAD~1
           
-          # Force push the reset branch
+          
           git push origin ${{ env.CURRENT_BRANCH }} --force
           
       - name: Push temporary branch
         run: |
-          # Switch to temp branch and push it
+          
           git checkout ${{ env.TEMP_BRANCH }}
           git push origin ${{ env.TEMP_BRANCH }}
           
