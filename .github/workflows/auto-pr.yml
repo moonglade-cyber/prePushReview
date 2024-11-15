@@ -53,7 +53,7 @@ jobs:
           git checkout ${{ env.CURRENT_BRANCH }}
           
           
-          #git reset --hard HEAD~1
+          git revert HEAD --no-edit
           
           
           git push origin ${{ env.CURRENT_BRANCH }} --force
