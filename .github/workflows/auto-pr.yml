@@ -27,32 +27,29 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
-      - name: Get branch name and create temp branch
+      - name: Create and push temporary branch
         run: |
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
           
-          # Store the current commit SHA
+          # Get the current commit SHA
           CURRENT_SHA=$(git rev-parse HEAD)
           
-          # Create temp branch from the current state
-          git checkout -b $TEMP_BRANCH
+          # Create temp branch but don't switch to it
+          git branch $TEMP_BRANCH $CURRENT_SHA
+          
+          # Push temp branch immediately
+          git push origin $TEMP_BRANCH
           
           # Save environment variables
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           echo "CURRENT_SHA=$CURRENT_SHA" >> $GITHUB_ENV
           
-      - name: Push temporary branch
-        run: |
-          # Ensure we're still on temp branch
-          git checkout ${{ env.TEMP_BRANCH }}
-          git push origin ${{ env.TEMP_BRANCH }}
-          
       - name: Revert changes on original branch
         run: |
-          # Switch back to original branch
+          # Make sure we're on the original branch
           git checkout ${{ env.CURRENT_BRANCH }}
           
           # Create revert commit
@@ -61,18 +58,16 @@ jobs:
           # Push the revert commit
           git push origin ${{ env.CURRENT_BRANCH }}
           
-      - name: Sync and verify branches
+      - name: Wait for branches to sync
         run: |
-          # Fetch all branches to ensure they're up to date
-          git fetch --all
-          
-          # Check the difference between branches
-          git log --oneline origin/${{ env.TEMP_BRANCH }}...origin/${{ env.CURRENT_BRANCH }}
+          # Give GitHub a moment to process the pushes
+          sleep 10
           
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Restore original changes"
           branch: ${{ env.TEMP_BRANCH }}
           base: ${{ env.CURRENT_BRANCH }}
           title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
@@ -81,4 +76,4 @@ jobs:
             The changes were temporarily moved to this branch and can be restored by merging this PR.
             
             Original commit: ${{ env.CURRENT_SHA }}
-          draft: false
+          delete-branch: false
