@@ -27,47 +27,40 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
-      - name: Create and push temporary branch
+      - name: Create temporary branch
         run: |
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
           
-          # Get the current commit SHA
+          # Get the current commit SHA (the one we want to preserve)
           CURRENT_SHA=$(git rev-parse HEAD)
           
-          # Create temp branch but don't switch to it
-          git branch $TEMP_BRANCH $CURRENT_SHA
-          
-          # Push temp branch immediately
-          git push origin $TEMP_BRANCH
-          
-          # Save environment variables
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           echo "CURRENT_SHA=$CURRENT_SHA" >> $GITHUB_ENV
           
-      - name: Revert changes on original branch
+          # Create a temporary branch from the specific commit
+          git push origin $CURRENT_SHA:refs/heads/$TEMP_BRANCH
+          
+      - name: Create revert commit
         run: |
-          # Make sure we're on the original branch
-          git checkout ${{ env.CURRENT_BRANCH }}
-          
-          # Create revert commit
+          # Create revert commit only on the current branch
           git revert --no-edit ${{ env.CURRENT_SHA }}
-          
-          # Push the revert commit
           git push origin ${{ env.CURRENT_BRANCH }}
           
-      - name: Wait for branches to sync
+      - name: Debug branch state
         run: |
-          # Give GitHub a moment to process the pushes
-          sleep 10
+          echo "Current branch state:"
+          git log -n 2 --oneline ${{ env.CURRENT_BRANCH }}
+          
+          echo "\nTemp branch state:"
+          git ls-remote origin ${{ env.TEMP_BRANCH }}
           
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Restore original changes"
           branch: ${{ env.TEMP_BRANCH }}
           base: ${{ env.CURRENT_BRANCH }}
           title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
