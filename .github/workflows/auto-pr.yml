@@ -58,6 +58,9 @@ jobs:
           
           # Push the revert commit
           git push origin ${{ env.CURRENT_BRANCH }}
+
+      - name: Checkout temporary branch
+        run: git checkout ${{ env.TEMP_BRANCH }}
           
       - name: Create Pull Request
         uses: repo-sync/pull-request@v2
