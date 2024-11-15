@@ -24,7 +24,6 @@ namespace GitHookTestApp
             //line28
 //line29
 //line30
-//ergtrhyy
         }
     }
 }
