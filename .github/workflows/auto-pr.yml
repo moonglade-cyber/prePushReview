@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-    
-    
 
 permissions:
   contents: write  
@@ -13,7 +11,6 @@ permissions:
 
 jobs:
   create-temp-branch-pr:
-    
     if: |
       !contains(github.event.head_commit.message, 'Merge pull request') &&
       github.event.created != true &&
@@ -31,37 +28,29 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
-      - name: Get branch name and create temp branch
+      - name: Get branch name and store commit hash
         run: |
-          
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
-          
-          
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
-          
-          
-          git checkout -b $TEMP_BRANCH
-          
-          
+          LAST_COMMIT_HASH=$(git rev-parse HEAD)
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
-          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          echo "LAST_COMMIT_HASH=$LAST_COMMIT_HASH" >> $GITHUB_ENV
           
-      - name: Reset original branch to previous commit
+      - name: Revert last commit in original branch
         run: |
-          
           git checkout ${{ env.CURRENT_BRANCH }}
-          
-          
           git revert HEAD --no-edit
+          git push origin ${{ env.CURRENT_BRANCH }}
           
-          
-          git push origin ${{ env.CURRENT_BRANCH }} --force
+      - name: Create temp branch and cherry-pick commit
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TEMP_BRANCH="temp/${{ env.CURRENT_BRANCH }}/${TIMESTAMP}"
+          git checkout -b $TEMP_BRANCH
+          git cherry-pick ${{ env.LAST_COMMIT_HASH }}
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
           
       - name: Push temporary branch
         run: |
-          
-          git checkout ${{ env.TEMP_BRANCH }}
           git push origin ${{ env.TEMP_BRANCH }}
           
       - name: Create Pull Request
