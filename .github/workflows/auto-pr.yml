@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - master
+    
+    
+
 permissions:
   contents: write  
   pull-requests: write  
 
 jobs:
   create-temp-branch-pr:
+    
     if: |
       !contains(github.event.head_commit.message, 'Merge pull request') &&
       github.event.created != true &&
@@ -27,46 +31,46 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           
-      - name: Create temporary branch
+      - name: Get branch name and create temp branch
         run: |
+          # Get the current branch name
           CURRENT_BRANCH=${GITHUB_REF#refs/heads/}
+          
+          # Generate a unique temporary branch name
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
           
-          # Get the current commit SHA (the one we want to preserve)
-          CURRENT_SHA=$(git rev-parse HEAD)
+          # Create and checkout temporary branch from the latest commit
+          git checkout -b $TEMP_BRANCH
           
+          # Store branch names for later steps
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
-          echo "CURRENT_SHA=$CURRENT_SHA" >> $GITHUB_ENV
           
-          # Create a temporary branch from the specific commit
-          git push origin $CURRENT_SHA:refs/heads/$TEMP_BRANCH
-          
-      - name: Create revert commit
+      - name: Reset original branch to previous commit
         run: |
-          # Create revert commit only on the current branch
-          git revert --no-edit ${{ env.CURRENT_SHA }}
-          git push origin ${{ env.CURRENT_BRANCH }}
+          # Switch back to original branch
+          git checkout ${{ env.CURRENT_BRANCH }}
           
-      - name: Debug branch state
+          # Reset to the previous commit
+          git reset --hard HEAD~1
+          
+          # Force push the reset branch
+          git push origin ${{ env.CURRENT_BRANCH }} --force
+          
+      - name: Push temporary branch
         run: |
-          echo "Current branch state:"
-          git log -n 2 --oneline ${{ env.CURRENT_BRANCH }}
-          
-          echo "\nTemp branch state:"
-          git ls-remote origin ${{ env.TEMP_BRANCH }}
+          # Switch to temp branch and push it
+          git checkout ${{ env.TEMP_BRANCH }}
+          git push origin ${{ env.TEMP_BRANCH }}
           
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+        uses: repo-sync/pull-request@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ env.TEMP_BRANCH }}
-          base: ${{ env.CURRENT_BRANCH }}
-          title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
-          body: |
-            This PR contains the original changes that were pushed to `${{ env.CURRENT_BRANCH }}`.
-            The changes were temporarily moved to this branch and can be restored by merging this PR.
-            
-            Original commit: ${{ env.CURRENT_SHA }}
-          delete-branch: false
+          source_branch: ${{ env.TEMP_BRANCH }}
+          destination_branch: ${{ env.CURRENT_BRANCH }}
+          pr_title: "Changes from ${{ env.CURRENT_BRANCH }} branch"
+          pr_body: |
+            This PR contains changes that were originally pushed to `${{ env.CURRENT_BRANCH }}`.
+            Created automatically by GitHub Actions.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
