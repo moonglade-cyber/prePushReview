@@ -27,7 +27,6 @@ namespace GitHookTestApp
 //dfghj
 //dsghj
 //ersdtgfhyguhy
-//line32
         }
     }
 }
