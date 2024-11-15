@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  
+          fetch-depth: 0
           
       - name: Configure Git
         run: |
@@ -46,6 +46,8 @@ jobs:
           
       - name: Push temporary branch
         run: |
+          # Ensure we're still on temp branch
+          git checkout ${{ env.TEMP_BRANCH }}
           git push origin ${{ env.TEMP_BRANCH }}
           
       - name: Revert changes on original branch
@@ -58,19 +60,25 @@ jobs:
           
           # Push the revert commit
           git push origin ${{ env.CURRENT_BRANCH }}
-
-      - name: Checkout temporary branch
-        run: git checkout ${{ env.TEMP_BRANCH }}
+          
+      - name: Sync and verify branches
+        run: |
+          # Fetch all branches to ensure they're up to date
+          git fetch --all
+          
+          # Check the difference between branches
+          git log --oneline origin/${{ env.TEMP_BRANCH }}...origin/${{ env.CURRENT_BRANCH }}
           
       - name: Create Pull Request
-        uses: repo-sync/pull-request@v2
+        uses: peter-evans/create-pull-request@v5
         with:
-          source_branch: ${{ env.TEMP_BRANCH }}
-          destination_branch: ${{ env.CURRENT_BRANCH }}
-          pr_title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
-          pr_body: |
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ env.TEMP_BRANCH }}
+          base: ${{ env.CURRENT_BRANCH }}
+          title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
+          body: |
             This PR contains the original changes that were pushed to `${{ env.CURRENT_BRANCH }}`.
             The changes were temporarily moved to this branch and can be restored by merging this PR.
             
             Original commit: ${{ env.CURRENT_SHA }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
