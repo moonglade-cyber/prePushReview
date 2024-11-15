@@ -33,17 +33,30 @@ jobs:
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           TEMP_BRANCH="temp/${CURRENT_BRANCH}/${TIMESTAMP}"
           
-          # Create and push temporary branch with current changes
-          git branch $TEMP_BRANCH
-          git push origin $TEMP_BRANCH
+          # Store the current commit SHA
+          CURRENT_SHA=$(git rev-parse HEAD)
           
+          # Create temp branch from the current state
+          git checkout -b $TEMP_BRANCH
+          
+          # Save environment variables
           echo "CURRENT_BRANCH=$CURRENT_BRANCH" >> $GITHUB_ENV
           echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
+          echo "CURRENT_SHA=$CURRENT_SHA" >> $GITHUB_ENV
+          
+      - name: Push temporary branch
+        run: |
+          git push origin ${{ env.TEMP_BRANCH }}
           
       - name: Revert changes on original branch
         run: |
-          # Stay on current branch
-          git revert --no-edit HEAD
+          # Switch back to original branch
+          git checkout ${{ env.CURRENT_BRANCH }}
+          
+          # Create revert commit
+          git revert --no-edit ${{ env.CURRENT_SHA }}
+          
+          # Push the revert commit
           git push origin ${{ env.CURRENT_BRANCH }}
           
       - name: Create Pull Request
@@ -51,8 +64,10 @@ jobs:
         with:
           source_branch: ${{ env.TEMP_BRANCH }}
           destination_branch: ${{ env.CURRENT_BRANCH }}
-          pr_title: "Changes from ${{ env.CURRENT_BRANCH }} branch"
+          pr_title: "Restore changes from ${{ env.CURRENT_BRANCH }} branch"
           pr_body: |
-            This PR contains changes that were originally pushed to `${{ env.CURRENT_BRANCH }}`.
-            Created automatically by GitHub Actions.
+            This PR contains the original changes that were pushed to `${{ env.CURRENT_BRANCH }}`.
+            The changes were temporarily moved to this branch and can be restored by merging this PR.
+            
+            Original commit: ${{ env.CURRENT_SHA }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
